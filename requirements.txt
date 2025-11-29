@@ -5,7 +5,6 @@ streamlit
 langchain-google-genai
 mysql-connector-python
 dotenv
-google-generativeai
 python-dotenv
 pymysql    
 sqlalchemy 
