@@ -6,11 +6,13 @@ from langchain_community.utilities import SQLDatabase
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser 
+import pymysql
+pymysql.install_as_MySQLdb()
 
 load_dotenv()
 
 def init_database(host, port, user, password, database):
-  db_url = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{database}"
+  db_url = f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}"
   return SQLDatabase.from_uri(db_url)
 
 def get_sql_chain(db):
@@ -130,6 +132,7 @@ if user_query is not None and user_query.strip() != "":
   if 'db' not in st.session_state:
     st.error("Please connect to a database first from the sidebar.")
     st.stop()
+    
   st.session_state["chat_history"].append(HumanMessage(content=user_query))
   
   with st.chat_message("Human"):
