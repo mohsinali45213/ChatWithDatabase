@@ -1,0 +1,10 @@
+langchain
+langchain-core
+langchain-community
+pypdf
+pymupdf
+langchain_text_splitters 
+chromadb
+scikit-learn
+streamlit
+langchain-google-genai
