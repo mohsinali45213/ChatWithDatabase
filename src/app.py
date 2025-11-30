@@ -44,7 +44,6 @@ def get_sql_chain(db):
 
     def get_schema(_):
         return db.get_table_info()
-
     return (
         RunnablePassthrough.assign(schema=get_schema)
         | prompt
@@ -67,6 +66,8 @@ def get_response(user_query: str, db: SQLDatabase, chat_history: list):
     SQL Response: {response}
 
     NOTE : along with the answer provide table format if it is possible.
+    Remember to follow these guidelines:
+    1. If user do not specify any table name then assume the table name is 'emp'
 
     Dangerous Operations:
     - If the SQL query contains any dangerous operations like DELETE, DROP, UPDATE, or ALTER, do not execute the query. Instead, respond with "I'm sorry, but I cannot execute queries that modify or delete data."
