@@ -40,7 +40,7 @@ def get_sql_chain(db):
     '''
 
     prompt = ChatPromptTemplate.from_template(template)
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")     
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")     
 
     def get_schema(_):
         return db.get_table_info()
@@ -74,7 +74,7 @@ def get_response(user_query: str, db: SQLDatabase, chat_history: list):
     """
 
     prompt = ChatPromptTemplate.from_template(template)
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")      
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")      
 
     chain = (
         RunnablePassthrough.assign(query=sql_chain).assign(
