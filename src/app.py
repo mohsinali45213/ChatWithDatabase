@@ -137,7 +137,7 @@ for message in st.session_state['chat_history']:
             st.markdown(message.content)
 
 
-user_query = st.chat_input("Ask your question about the database...")
+user_query = st.chat_input("eg: How many employees are there in each department?")
 if user_query is not None and user_query.strip() != "":
     if 'db' not in st.session_state:
         st.error("Please connect to a database first from the sidebar.")
