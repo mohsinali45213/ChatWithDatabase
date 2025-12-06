@@ -18,20 +18,67 @@ def init_database(host, port, user, password, database):
 
 def get_sql_chain(db):
     template = '''
-    You are a data analyst at a company. You are interacting with a user who is asking you questions about the company's database.
-    Based on the table schema below, write a SQL query that would answer the user's question. Take the conversation history into account.
+    You are an expert SQL database analyst and administrator. You are interacting with a user who is asking questions about the database or requesting data modifications.
+    Based on the table schema below, write SQL query/queries that would answer the user's question or perform the requested operation.
 
     <SCHEMA>{schema}</SCHEMA>
 
     Conversation History: {chat_history}
 
-    Write only the SQL query and nothing else. Do not wrap the SQL query in any other text, not even backticks.
+    **CRITICAL RULES:**
+    1. Write ONLY valid SQL query/queries - no explanations, no backticks, no markdown formatting.
+    2. For MULTIPLE operations or questions, write multiple SQL statements separated by semicolons (;).
+    3. Always use the exact table and column names from the schema above.
+    4. If a table or column doesn't exist in the schema, DO NOT make up names - use only what's available.
+    5. For ambiguous questions, infer the most logical table/column based on the schema context.
 
-    For example:
-    Question: which 3 artists have the most tracks?
+    **SUPPORTED OPERATIONS:**
+    - SELECT: Retrieve data with filtering (WHERE), sorting (ORDER BY), grouping (GROUP BY), joins (JOIN), aggregations (COUNT, SUM, AVG, MIN, MAX), subqueries, DISTINCT, LIMIT, OFFSET
+    - INSERT: Add new records (INSERT INTO table (columns) VALUES (values))
+    - UPDATE: Modify existing records (UPDATE table SET column=value WHERE condition)
+    - DELETE: Remove records (DELETE FROM table WHERE condition)
+    - Complex queries: UNION, INTERSECT, EXCEPT, nested subqueries, CTEs (WITH clause), CASE statements
+    - Analytical: Window functions (ROW_NUMBER, RANK, DENSE_RANK, LAG, LEAD), HAVING clause
+
+    **QUERY WRITING GUIDELINES:**
+    - For COUNT/aggregation questions: Use appropriate GROUP BY clauses
+    - For "top N" or "bottom N": Use ORDER BY with LIMIT
+    - For date/time filtering: Use appropriate date functions (DATE, YEAR, MONTH, etc.)
+    - For text search: Use LIKE with wildcards (%) for partial matches
+    - For NULL handling: Use IS NULL or IS NOT NULL, COALESCE, IFNULL
+    - For joins: Identify relationships from schema and use appropriate JOIN type (INNER, LEFT, RIGHT)
+    - For calculations: Use arithmetic operators and aggregate functions
+    - Always include WHERE clause for UPDATE/DELETE to prevent affecting all rows (unless explicitly requested)
+
+    **MULTIPLE QUERIES HANDLING:**
+    If the user asks multiple questions or requests multiple operations in one prompt:
+    - Write each query on a new line, separated by semicolons
+    - Process them in logical order (e.g., INSERT before SELECT to see new data)
+
+    **EXAMPLES:**
+    Question: Which 3 artists have the most tracks?
     SQL Query: SELECT ArtistId, COUNT(*) as track_count FROM Track GROUP BY ArtistId ORDER BY track_count DESC LIMIT 3;
+
     Question: Name 10 artists
     SQL Query: SELECT Name FROM Artist LIMIT 10;
+
+    Question: Add a new customer named John with email john@test.com and then show all customers
+    SQL Query: INSERT INTO customers (name, email) VALUES ('John', 'john@test.com');
+    SELECT * FROM customers;
+
+    Question: Update the price of product with id 5 to 99.99
+    SQL Query: UPDATE products SET price = 99.99 WHERE id = 5;
+
+    Question: Delete all orders older than 2020 and count remaining orders
+    SQL Query: DELETE FROM orders WHERE YEAR(order_date) < 2020;
+    SELECT COUNT(*) as remaining_orders FROM orders;
+
+    Question: Show total sales by category and the top selling product
+    SQL Query: SELECT category, SUM(sales) as total_sales FROM products GROUP BY category ORDER BY total_sales DESC;
+    SELECT product_name, sales FROM products ORDER BY sales DESC LIMIT 1;
+
+    Question: Find customers who have never placed an order
+    SQL Query: SELECT c.* FROM customers c LEFT JOIN orders o ON c.id = o.customer_id WHERE o.id IS NULL;
 
     Your turn:
 
@@ -56,30 +103,119 @@ def get_response(user_query: str, db: SQLDatabase, chat_history: list):
     sql_chain = get_sql_chain(db)
 
     template = """
-    You are a data analyst at a company. You are interacting with a user who is asking you questions about the company's database.
-    Based on the table schema below, question, sql query, and sql response, write a natural language response.
+    You are an expert data analyst and database administrator. You help users understand their database and perform operations on it.
+    Based on the information below, provide a clear, helpful, and well-formatted response.
+
     <SCHEMA>{schema}</SCHEMA>
 
     Conversation History: {chat_history}
-    SQL Query: <SQL>{query}</SQL>
-    User question: {question}
-    SQL Response: {response}
+    
+    User Question: {question}
+    
+    SQL Query/Queries Executed: 
+    <SQL>{query}</SQL>
+    
+    SQL Response/Results: 
+    {response}
 
-    NOTE : along with the answer provide table format if it is possible.
-    Remember to follow these guidelines:
-    - If the SQL query returns no results, respond with "I am sorry, I could not find an answer to your question."
-    if there is not table or data to show just say "No data available to display.".
-    upderstand that the user might not specify the table name in their question, so use the schema to infer the correct table to query.
+    **RESPONSE GUIDELINES:**
 
+    1. **For SELECT queries (data retrieval):**
+       - Present results in a clean, formatted markdown table when applicable
+       - Summarize key findings in natural language
+       - If multiple queries were executed, present each result separately with clear headings
+       - For aggregate results (COUNT, SUM, AVG), highlight the numbers clearly
+
+    2. **For INSERT operations:**
+       - Confirm the insertion was successful
+       - Mention what data was added
+       - If a SELECT follows, show the updated data
+
+    3. **For UPDATE operations:**
+       - Confirm the update was successful
+       - Specify what was changed and how many rows were affected (if known)
+       - Describe the modification made
+
+    4. **For DELETE operations:**
+       - Confirm the deletion was successful
+       - Mention what was deleted
+       - If appropriate, mention how many records were removed
+
+    5. **For multiple queries:**
+       - Address each query result in order
+       - Use clear section headings (### Query 1 Results, ### Query 2 Results, etc.)
+       - Summarize the overall outcome at the end
+
+    6. **Error handling:**
+       - If SQL returns no results: "No matching records found for your query."
+       - If SQL returns empty data: "The query executed successfully but returned no data."
+       - If there's an error: Explain what might have gone wrong in simple terms
+
+    7. **Formatting:**
+       - Use markdown tables for tabular data (| Column1 | Column2 |)
+       - Use bullet points for lists
+       - Bold important numbers and findings
+       - Keep responses concise but informative
+
+    **EXAMPLE RESPONSES:**
+
+    For a count query:
+    "There are **42 customers** in the database."
+
+    For a data retrieval:
+    "Here are the top 5 products by sales:
+    
+    | Product Name | Sales | Category |
+    |--------------|-------|----------|
+    | Widget A     | 1500  | Electronics |
+    | Widget B     | 1200  | Electronics |
+    ..."
+
+    For an insert operation:
+    "✅ Successfully added the new customer:
+    - **Name:** John Doe
+    - **Email:** john@example.com
+    
+    The customer has been added to the database."
+
+    For multiple operations:
+    "### Operation 1: Insert
+    ✅ New record added successfully.
+    
+    ### Operation 2: Current Data
+    Here's the updated list:
+    | ... |"
+
+    Now provide your response based on the actual query results above:
     """
 
     prompt = ChatPromptTemplate.from_template(template)
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash-lite")      
 
+    def execute_queries(vars):
+        """Execute single or multiple SQL queries separated by semicolons"""
+        query = vars['query'].strip()
+        results = []
+        
+        # Split queries by semicolon, but handle edge cases
+        queries = [q.strip() for q in query.split(';') if q.strip()]
+        
+        for i, q in enumerate(queries):
+            try:
+                result = db.run(q)
+                if len(queries) > 1:
+                    results.append(f"**Query {i+1}:** `{q}`\n**Result:** {result}")
+                else:
+                    results.append(result)
+            except Exception as e:
+                results.append(f"**Query {i+1} Error:** {str(e)}")
+        
+        return "\n\n".join(results) if results else "No results"
+
     chain = (
         RunnablePassthrough.assign(query=sql_chain).assign(
             schema=lambda _: db.get_table_info(),
-            response=lambda vars: db.run(vars['query'])
+            response=lambda vars: execute_queries(vars)
         )
         | prompt
         | llm
